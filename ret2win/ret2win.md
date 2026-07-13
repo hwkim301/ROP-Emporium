@@ -315,6 +315,8 @@ Understanding stack-alignment and why you need to add a `ret` instruction is pre
 
 For now let's just embrace the fact that when the stack isn't aligned you should pass a `ret` instruction before a function call. 
 
+If you really want to understand why x86-64 and SYSV ABI mandates a 16 byte alignment, [here's](https://stackoverflow.com/questions/49391001/why-does-the-x86-64-amd64-system-v-abi-mandate-a-16-byte-stack-alignment) a detailed explanation. 
+
 You can use `ROPgadget` to find the address of the `ret` instruction, but I'll use pwntools.
 
 Here's the updated code that has an extra `ret` to ensure the stack is `16` byte aligned before a function call. 
