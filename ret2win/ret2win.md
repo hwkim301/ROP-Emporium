@@ -236,7 +236,7 @@ Finally, `ret2win` also starts with a `push rbp`, `mov rbp rsp`.
   40077b:	0f 1f 44 00 00       	nop    DWORD PTR [rax+rax*1+0x0]
 ```
 
-I explained how the return address gets push on to the stack before the function prologue in my previous post [here](https://hwkim301.com/posts/linux/inside-an-empty-main-function/).
+I explained how the return address gets pushed on to the stack before the function prologue in my previous post [here](https://hwkim301.com/posts/linux/inside-an-empty-main-function/).
 
 Without passing the `-fomit-frame-pointer` flag, all functions will start with a function prologue and end in an epilogue. 
 
