@@ -43,7 +43,15 @@ $ ldd callme
 	/lib64/ld-linux-x86-64.so.2 (0x000078ca7df74000)
 ```
 
-You can see that in order to run the binary it depends on the glibc, and the dynamic linker / loader. 
+You can see that in order to run the binary it depends on the [glibc](https://en.wikipedia.org/wiki/Glibc).
+
+Although glibc is [C code with a bit of assembly](https://elixir.bootlin.com/glibc/glibc-2.43/source), building glibc creates a shared object `/lib/x86_64-linux-gnu/libc.so.6`. 
+
+The [dynamic linker / loader](https://unix.stackexchange.com/questions/400621/what-is-lib64-ld-linux-x86-64-so-2-and-why-can-it-be-used-to-execute-file) is `/lib64/ld-linux-x86-64.so.2`.
+
+I knew dynamically linked binaries depended on libc and the dynamic linker/ loader but it looks like it needs the `linux-vdso.so.1` vDSO (virtual dynamic shared object) as well.
+
+The wikipedia page for [vDSO](https://en.wikipedia.org/wiki/VDSO) and [stackoverflow](https://stackoverflow.com/questions/19938324/what-are-vdso-and-vsyscall) seems like a nice intro on what vDSO is. 
 
 
 The goal is to call three functions. 
