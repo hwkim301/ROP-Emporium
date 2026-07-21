@@ -9,7 +9,7 @@ write4: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked,
 
 ```
 $ checksec write4
-[*] '/home/hwkim301/rop_emporium/write/write4'
+[*] '/home/hwkim301/ropemporium/write4/write4'
     Arch:       amd64-64-little
     RELRO:      Partial RELRO
     Stack:      No canary found
@@ -30,7 +30,7 @@ Shared libraries are position-independent by default.
 
 ```
 $ checksec libwrite4.so
-[*] '/home/hwkim301/rop_emporium/write/libwrite4.so'
+[*] '/home/hwkim301/ropemporium/write4/libwrite4.so'
     Arch:       amd64-64-little
     RELRO:      Partial RELRO
     Stack:      No canary found
@@ -43,9 +43,9 @@ How does `file` know whether or not the `ELF` file is an executable or a shared 
 
 Well, you can run `readelf -h` on the executable and the share object. 
 
-![executable](executable.webp)
+![exec](exec.png)
 
-![library](library.webp)
+![libwrite4.so](libwrite4.so.png)
 
 `readelf` tells you that an executable is an `EXEC` and a shared object is a `DYN`.
 
@@ -53,11 +53,11 @@ It still probably has to parse the actual bytes from the `ELF` file and determin
 
 According to [wikipedia](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format), the decision is made by the `e_type`. 
 
+[e_type](e_type.png)
+
 Someone on [stackoverflow](https://stackoverflow.com/questions/34519521/why-does-gcc-create-a-shared-object-instead-of-an-executable-binary-according-to/34522357#34522357) had the exact same question as I did 10 years ago. 
 
-![diff](diff.webp)
-
-Therefore, `write4` has to have an `e_type` of `0x02` since it's an executable.
+`write4` has to have an `e_type` of `0x02` since it's an executable.
 
 On the other hand, the `e_type` for `libwrite4.so` will be `0x03`.
 
@@ -96,31 +96,15 @@ You can see for yourself that at the end there's the bytes are respectfully `020
 
 The bytes in the `ELF` files seem to be 0-indexed.
 
-This used to be the ground truth until `ELF` files weren't compiled by `-pie` in gcc.
+This used to be the true until `ELF` files weren't compiled by `-pie` in gcc.
 
-From Ubuntu 16.10 and later on programs are compiled with the `-fPIE, -pie` flag by default.
+From Ubuntu 16.10 and later on programs are compiled with the `-fPIE, -pie` flag by [default](https://documentation.ubuntu.com/security/security-features/process-memory/compiler-flags/).
 
 Run `gcc -v` to see the default flags enabled on your system. 
 
-Here's mine on Ubuntu 26.04 wsl2. 
+Here's mine on Ubuntu 24.04.4 LTS.
 
-```bash 
-$ gcc -v
-Using built-in specs.
-COLLECT_GCC=gcc
-COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper
-OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
-OFFLOAD_TARGET_DEFAULT=1
-Target: x86_64-linux-gnu
-Configured with: ../src/configure -v --with-pkgversion='Ubuntu 15.2.0-16ubuntu1' --with-bugurl=file:///usr/share/doc/gcc-15/README.Bugs --enable-languages=c,ada,c++,go,d,fortran,objc,obj-c++,m2,rust,cobol,algol68 --prefix=/usr --with-gcc-major-version-only --program-suffix=-15 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/libexec --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-libstdcxx-backtrace --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --enable-cet --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-15-j35TAX/gcc-15-15.2.0/debian/tmp-nvptx/usr,amdgcn-amdhsa=/build/gcc-15-j35TAX/gcc-15-15.2.0/debian/tmp-gcn/usr --enable-offload-defaulted --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-serialization=2
-Thread model: posix
-Supported LTO compression algorithms: zlib zstd
-gcc version 15.2.0 (Ubuntu 15.2.0-16ubuntu1) 
 ```
-
-Ubuntu 24.04 wsl2's flag. 
-
-```bash
 $ gcc -v
 Using built-in specs.
 COLLECT_GCC=gcc
@@ -134,19 +118,19 @@ Supported LTO compression algorithms: zlib zstd
 gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 
 ```
 
-Now that all binaries are compiled with pie by default, all of them will have the `ET_DYN` type. 
+Now that all binaries are compiled with pie by default, not only the shared objects, but executables are  `ET_DYN`.
 
 For executables it will be `DYN (Position-Independent Executable file)` and for shared objects it will be 
 
 `DYN (Shared object file)`. 
 
-Thus you can't just rely on the `e_type`.
+Thus you can't just rely on the `e_type` to tell whether or not it's a binary or a library. 
 
-Employed Russian has an explanation about this on [stackoverflow](https://stackoverflow.com/questions/16302575/distinguish-shared-objects-from-position-independent-executables/16351525#16351525).
+Employed Russian has an explanation about this on [stackoverflow](https://stackoverflow.com/questions/16302575/distinguish-shared-objects-from-position-independent-executables/16351525).
 
 But for now, we won't dig into `PIE` executables.
 
-Luckily for us the challenges in ropemporium do not have `pie` enabled. 
+Luckily for us the challenges in ropemporium don't have `pie` enabled. 
 
 Let's load the binary to `ghidra`.
 
@@ -223,7 +207,7 @@ void print_file(char *param_1)
 }
 ```
 
-According to the website, we need to cleverly manipulate the `mov [reg] reg`, instructions to write the flag in the `ELF` file. 
+According to the ropemporium  website, we can manipulate the `mov [reg] reg` instruction to write the flag in the `ELF` file. 
 
 ```
 $ ROPgadget --binary write4 
@@ -325,7 +309,7 @@ Unique gadgets found: 90
 
 Which gadgets should we use? 
 
-After searching for some writeups online, these are the two gadgets that are necessary.
+After searching for some writeups online, these are the two gadgets that we must use. 
 
 ```
 0x0000000000400628 : mov qword ptr [r14], r15 ; ret
@@ -360,11 +344,11 @@ p.interactive()
 
 First send dummy bytes until you reach the saved frame pointer. 
 
-Then `pop r14 ; pop r15 ; ret`, will take the values on the very value stored at the top of stack to the `r14` register.
+`pop r14 ; pop r15 ; ret`, will pop the value off the top of the stack and save it to the `r14` register.
 
-Next, it will save the that was previously right below the top of the stack to the `r15` register.
+Then it will pop another value of the top of the stack, save it to `r15` and will continue program execution.
 
-We will pass the executable's `bss` address to `r14` and a byte string of `flag.txt` to `r15`.
+We will pass the executable's `bss` address to `r14` and a bytes object `flag.txt` to `r15`.
 
 What is the `bss`?
 
@@ -374,11 +358,11 @@ Here's what the man page says (man elf).
 
 The `.bss` section stores data that's uninitialized with `0`s when the program starts to run. 
 
-![bss](bss.webp)
+![bss](bss.png)
 
 Okay, but why do we need to use the `.bss` section? 
 
-Well remember there's this gadget? `mov qword ptr [r14], r15 ; ret`.
+Well remember this gadget? `mov qword ptr [r14], r15 ; ret`.
 
 Right after `pop r14 ; pop r15 ; ret` executes? 
 
@@ -388,17 +372,7 @@ If we pass the address of `.bss` and `flag.txt`.
 
 Next, `mov qword ptr [r14], r15 ; ret` will store `flag.txt` at the address of `r14`.
 
-Then, we need to call `print_file(flag.txt)`.
-
-In order to do that, we'll need to use a `pop rdi ret` gadget. 
-
-We then need to pass the memory address of where `flag.txt`.
-
-Right before we saved `flag.txt` to the `.bss` section with `mov qword ptr [r14], r15 ; ret`.
-
-So passing the `.bss` address will load `rdi` with `flag.txt`.
-
-Finally we can trigger the `print_file` function call.
+Then, we will be able to call `print_file(flag.txt)`.
 
 I've tried modifying the code above using pwntools' `ROP` class, but the `ROP` class couldn't find `mov qword ptr [r14], r15 ; ret`.
 
@@ -410,15 +384,7 @@ What's the [.data](https://en.wikipedia.org/wiki/Data_segment) section?
 
 Let's check `man elf` again. 
 
-I didn't take a screenshot, because the width of the image was too long. 
-
-It made it hard to read the description.
-
-``` 
-.data  This section holds initialized data that contribute to the program's memory image.  
-
-This section is of type SHT_PROGBITS.  The attribute types are SHF_ALLOC and SHF_WRITE.
-```
+![data](data.png)
 
 To summarize the, `.bss` stores uninitialized data in the `ELF` file and `.data` saves the initialized data.
 
@@ -498,15 +464,15 @@ Key to Flags:
   D (mbind), l (large), p (processor specific)
 ```
 
-The reason why people chose the `.bss` or `.data` section is because it's one of the few section where you can write.
+The reason why people chose the `.bss` or `.data` section is because it's one of the few section where you have privilege to write. 
 
-![readelf](readelf.webp)
+![readelf](readelf.png)
 
 You might also ask again, that `.init_array`, `.fini_array`, `.dynamic`, `.got`, `.got.plt` all have access to write.
 
 That's correct, but those sections are closely related to program initialization and the dynamic linker/loader.
 
-In conclusion, writing a variable somewhere else other than the `.bss` or `.data` isn't ideal. 
+In conclusion, writing bytes somewhere else other than the `.bss` or `.data` isn't ideal. 
 
 ```python 
 from pwn import *
