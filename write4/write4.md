@@ -53,7 +53,7 @@ It still probably has to parse the actual bytes from the `ELF` file and determin
 
 According to [wikipedia](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format), the decision is made by the `e_type`. 
 
-[e_type](e_type.png)
+![e_type](e_type.png)
 
 Someone on [stackoverflow](https://stackoverflow.com/questions/34519521/why-does-gcc-create-a-shared-object-instead-of-an-executable-binary-according-to/34522357#34522357) had the exact same question as I did 10 years ago. 
 
